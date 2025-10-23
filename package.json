@@ -1,9 +1,9 @@
 {
-  "name": "synapse",
-  "displayName": "synapse",
-  "version": "0.0.0",
+  "name": "helm-extension",
+  "displayName": "Helm",
+  "version": "0.1.0",
   "author": "danielkhp@gmail.com",
-  "description": "",
+  "description": "Take command of your browser. A natural language command bar for tabs, windows, and workspaces.",
   "type": "module",
   "license": "MIT",
   "keywords": [
