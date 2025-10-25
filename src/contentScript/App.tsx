@@ -4,12 +4,11 @@ import CommandBar from './components/CommandBar';
 
 const App = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null); // Ref for the full-viewport overlay
   const commandBarRef = useRef<HTMLDivElement>(null); // Ref for the CommandBar itself
 
   // Effect to toggle pointer-events on the root container
   useEffect(() => {
-    const rootElement = document.getElementById('helm-root');
+    const rootElement = document.getElementById('helm-app-container');
     if (rootElement) {
       rootElement.style.pointerEvents = isVisible ? 'auto' : 'none';
     }
@@ -58,7 +57,7 @@ const App = () => {
   }, [isVisible]);
 
   return (
-    <div className="helm-app-container" ref={containerRef}>
+    <div className="helm-app-container">
       <CommandBar ref={commandBarRef} isVisible={isVisible} />
     </div>
   );
