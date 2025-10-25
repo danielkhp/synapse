@@ -44,7 +44,7 @@ export default defineManifest({
     newtab: 'newtab.html',
   },
   commands: {
-    'open-helm': {
+    'OPEN_HELM': {
       suggested_key: {
         default: 'Ctrl+Shift+L',
         mac: 'MacCtrl+Shift+L'

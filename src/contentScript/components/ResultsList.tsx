@@ -1,8 +1,9 @@
 import React from 'react';
 import ResultsItem from './ResultsItem';
+import { CommandResult } from '../../types';
 
 interface ResultsListProps {
-  results: string[];
+  results: CommandResult[];
   highlightedIndex: number;
 }
 
@@ -12,8 +13,8 @@ const ResultsList: React.FC<ResultsListProps> = ({ results, highlightedIndex }) 
       {results.map((result, index) => (
         <ResultsItem
           key={index}
+          result={result}
           isHighlighted={index === highlightedIndex}
-          text={result}
         />
       ))}
     </ul>

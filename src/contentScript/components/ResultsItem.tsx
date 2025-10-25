@@ -1,10 +1,11 @@
 import React from 'react';
 import Icon from './Icon';
 import ActionHint from './ActionHint';
+import { CommandResult } from '../../types';
 
 interface ResultsItemProps {
+  result: CommandResult
   isHighlighted: boolean;
-  text: string;
 }
 
 const ResultsItem: React.FC<ResultsItemProps> = ({ isHighlighted, text }) => {
