@@ -3,38 +3,16 @@ import Input from './Input'
 import ResultsList from './ResultsList'
 import { CommandResult, Message } from '../../types'
 
-interface CommandBarProps {
-  isVisible: boolean
-}
-
-const CommandBar = React.forwardRef<HTMLDivElement, CommandBarProps>(({ isVisible }, ref) => {
+const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
   const [command, setCommand] = useState('')
   const [results, setResults] = useState<CommandResult[]>([])
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Focus input when the component becomes visible
+  // Focus input when the component mounts
   useEffect(() => {
-    if (isVisible && inputRef.current) {
-      inputRef.current.focus()
-    }
-  }, [isVisible])
-
-  // Reset state when the command bar is closed, after the fade-out animation
-  useEffect(() => {
-    if (!isVisible) {
-      const rootStyle = getComputedStyle(document.documentElement)
-      const durationString = rootStyle.getPropertyValue('--helm-transition-duration')
-      const durationMs = parseFloat(durationString) * 1000
-
-      const timer = setTimeout(() => {
-        setCommand('')
-        setResults([])
-        setHighlightedIndex(0)
-      }, durationMs)
-      return () => clearTimeout(timer)
-    }
-  }, [isVisible])
+    inputRef.current?.focus()
+  }, [])
 
   // Send the command to the background script whenever it changes
   useEffect(() => {
@@ -57,12 +35,17 @@ const CommandBar = React.forwardRef<HTMLDivElement, CommandBarProps>(({ isVisibl
     return () => chrome.runtime.onMessage.removeListener(messageListener)
   }, [])
 
+  // Reset highlighted index when the results change
+  useEffect(() => {
+    setHighlightedIndex(0)
+  }, [results])
+
   const handleCommandChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCommand(e.target.value)
   }
 
   return (
-    <div className={`helm-command-bar ${isVisible ? 'visible' : 'hidden'}`} ref={ref}>
+    <div className="helm-command-bar" ref={ref}>
       <Input ref={inputRef} value={command} onChange={handleCommandChange} />
       <ResultsList results={results} highlightedIndex={highlightedIndex} />
     </div>

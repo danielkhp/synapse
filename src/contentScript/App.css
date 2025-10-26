@@ -1,62 +1,34 @@
-:root {
-  --helm-transition-duration: 0.2s;
+/* the shadow DOM host */
+:host {
+  display: block;
 }
 
-/* src/contentScript/App.css */
-.helm-app-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 9999;
+#helm-portal-container {
+  height: 100%;
+}
+
+/* the overlay rendered by the React portal */
+.helm-overlay {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: 20px;
-  background-color: transparent;
-  border: none;
-}
-
-/* CommandBar styling */
-.helm-command-bar {
-  width: 500px;
-  background-color: white;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  padding: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  transition: opacity var(--helm-transition-duration) ease-in-out, transform var(--helm-transition-duration) ease-in-out;
-}
-
-/* Styling for when the CommandBar is hidden/shown */
-.helm-command-bar.hidden {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-.helm-command-bar.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.helm-command-input {
+  
   width: 100%;
-  padding: 5px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  margin-bottom: 10px;
+  height: 100%;
+  
+  pointer-events: none;
+
+  background-color: rgba(0, 0, 0, 0.4);
+  
+  padding-top: 20vh;
 }
 
-.helm-results-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.helm-result-item {
-  padding: 5px;
-  border-bottom: 1px solid #eee;
+/* the command bar within the overlay */
+.helm-command-bar {
+  pointer-events: auto;
+  width: 600px;
+  max-width: 90vw;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }

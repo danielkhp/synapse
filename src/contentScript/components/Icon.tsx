@@ -1,7 +1,7 @@
-import React from 'react';
+import React from 'react'
 
 const Icon = () => {
-  return <span>Icon</span>;
-};
+  return <span>Icon</span>
+}
 
-export default Icon;
+export default Icon
