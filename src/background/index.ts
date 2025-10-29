@@ -1,6 +1,10 @@
 import Fuse from 'fuse.js'
-import { getLanguageModelSession, resetSessionDestroyTimer } from './aiSession'
+import { getIntentFromLLM, findBestTabSemantically } from './ai'
 import { CommandResult, Message } from '../types'
+
+let aiDebounceTimer: NodeJS.Timeout | null = null
+const AI_DEBOUNCE_DELAY_MS = 350 // A good delay for user pauses
+let queryAbortController = new AbortController()
 
 // Listener for the hotkey command
 chrome.commands.onCommand.addListener(async (command) => {
@@ -21,33 +25,87 @@ chrome.runtime.onMessage.addListener((message: Message, sender) => {
 
   const handleMessage = async () => {
     if (message.type === 'COMMAND_CHANGED') {
-      console.log('Helm Background: Command changed', message.payload)
-      const { intent, query } = await getIntentFromLLM(message.payload)
+      const command = message.payload
+      if (command.trim() === '') return
 
-      switch (intent) {
-        case 'FIND_TAB': {
-          console.log('Helm Background: Finding tab', query)
-          const results = await findTabs(query)
-          if (sender.tab?.id) {
-            chrome.tabs.sendMessage(sender.tab.id, {
-              type: 'RESULTS_UPDATED',
-              payload: results.slice(0, 10),
-            })
+      // Perform an instant, fuzzy search on tab titles and urls
+      const fuseResults = await findTabs(command)
+      if (fuseResults.length > 0) {
+        if (sender.tab?.id) {
+          chrome.tabs.sendMessage(sender.tab.id, {
+            type: 'RESULTS_UPDATED',
+            payload: fuseResults.slice(0, 10),
+          })
+        }
+      } else {
+        // --- Debounced AI pipeline ---
+        if (aiDebounceTimer) clearTimeout(aiDebounceTimer) // Clear any previous debounce
+        queryAbortController.abort() // Abort any in-flight AI request
+
+        // Start a new timer for the AI path
+        aiDebounceTimer = setTimeout(async () => {
+          // Create a fresh abort signaler for this prompt
+          queryAbortController = new AbortController()
+          const signal = queryAbortController.signal
+
+          try {
+            const { intent, query } = await getIntentFromLLM(command, signal)
+            if (signal.aborted) return
+
+            let finalResults: CommandResult[] = []
+
+            switch (intent) {
+              case 'FIND_TAB': {
+                if (sender.tab?.id) {
+                  chrome.tabs.sendMessage(sender.tab.id, { type: 'AI_SEARCH_STARTED' })
+                }
+
+                const allTabs = await chrome.tabs.query({})
+                const semanticMatch = await findBestTabSemantically(query, allTabs, signal)
+
+                if (semanticMatch) {
+                  // We found a smart result! Create a special result object for it.
+                  const smartResult: CommandResult = {
+                    id: `tab-${semanticMatch.id}`,
+                    type: 'tab',
+                    // Prepend a sparkle to the title for the UI
+                    title: `✨ ${semanticMatch.title || 'Untitled Tab'}`,
+                    // Use the subtitle to explain *why* this result was shown
+                    subtitle: `Suggested for "${query}"`,
+                    faviconUrl: semanticMatch.favIconUrl,
+                  }
+                  finalResults.push(smartResult)
+                }
+                break
+              }
+
+              case 'GROUP_TABS': {
+                console.log(`Helm Background: Grouping tabs '${query}'`)
+                // TODO: Implement tab grouping logic
+                break
+              }
+
+              case 'UNKNOWN':
+              default:
+                console.log('Helm Background: Unknown intent', { intent, query })
+                break
+            }
+
+            if (sender.tab?.id && !signal.aborted) {
+              chrome.tabs.sendMessage(sender.tab.id, {
+                type: 'RESULTS_UPDATED',
+                payload: finalResults,
+              })
+            }
+          } catch (e: any) {
+            if (e.name !== 'AbortError') {
+              console.error('Helm AI: Error during prompt execution.', e)
+            }
           }
-          break
-        }
-        case 'GROUP_TABS': {
-          console.log('Helm Background: Grouping tabs', query)
-          // TODO: Implement tab grouping logic
-          break
-        }
-        case 'UNKNOWN':
-        default:
-          console.log('Helm Background: Unknown intent', { intent, query })
-          break
+        }, AI_DEBOUNCE_DELAY_MS)
       }
     } else if (message.type === 'EXECUTE_ACTION') {
-      console.log('Helm Background: Executing action', message.payload)
+      console.log(`Helm Background: Executing action '${message.payload}'`)
       const tabId = parseInt(message.payload.id, 10)
       const tab = await chrome.tabs.get(tabId)
 
@@ -63,41 +121,8 @@ chrome.runtime.onMessage.addListener((message: Message, sender) => {
   handleMessage()
 })
 
-// Use AI to classify the user's command and call the correct function
-async function getIntentFromLLM(text: string): Promise<{ intent: string; query: string }> {
-  const currentSession = await getLanguageModelSession()
-
-  if (!currentSession) {
-    return { intent: 'FIND_TAB', query: text }
-  }
-
-  resetSessionDestroyTimer()
-
-  const prompt = text
-
-  // The JSON schema to constrain the model response
-  const schema = {
-    type: 'object',
-    properties: {
-      intent: { type: 'string', enum: ['FIND_TAB', 'GROUP_TABS', 'UNKNOWN'] },
-      query: { type: 'string' },
-    },
-  }
-
-  try {
-    const result = await currentSession.prompt(prompt, { responseConstraint: schema })
-    const parsed = JSON.parse(result)
-    return {
-      intent: parsed.intent || 'UNKNOWN',
-      query: parsed.query || text,
-    }
-  } catch (e) {
-    console.error('Helm AI: Error during prompt execution.', e)
-    return { intent: 'FIND_TAB', query: text }
-  }
-}
-
 async function findTabs(query: string): Promise<CommandResult[]> {
+  console.log(`Helm background: Fuzzy searching for '${query}'`)
   const allTabs = await chrome.tabs.query({})
 
   // Configure Fuse.js for fuzzy searching on tab titles and URLs
@@ -108,7 +133,8 @@ async function findTabs(query: string): Promise<CommandResult[]> {
   })
 
   const searchResults = fuse.search(query)
-  
+  console.log(`Helm background: Fuzzy search found ${searchResults.length} results`)
+
   // Format the Fuse results into our CommandResult type
   return searchResults.map(({ item: tab }) => ({
     id: String(tab.id),
