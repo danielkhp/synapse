@@ -27,6 +27,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^7.3.4",
+    "@types/dom-chromium-ai": "^0.0.10",
     "fuse.js": "^7.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

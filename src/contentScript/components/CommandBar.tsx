@@ -28,7 +28,10 @@ const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
   useEffect(() => {
     if (command.trim() !== '') {
       console.log(`Helm Content Script: Command changed to "${command}"`)
-      chrome.runtime.sendMessage({ type: 'COMMAND_CHANGED', payload: command })
+      chrome.runtime.sendMessage({
+        type: 'COMMAND_CHANGED',
+        payload: command,
+      })
     } else {
       setResults([]) // Clear results when query is empty
     }
@@ -111,10 +114,7 @@ const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
                   style={{ width: 16, height: 16 }}
                 />
               </ListItemIcon>
-              <ListItemText
-                primary={result.title}
-                secondary={result.subtitle}
-              />
+              <ListItemText primary={result.title} secondary={result.subtitle} />
             </ResultItemStyled>
           </ListItem>
         ))}

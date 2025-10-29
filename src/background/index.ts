@@ -1,4 +1,5 @@
 import Fuse from 'fuse.js'
+import { getLanguageModelSession, resetSessionDestroyTimer } from './aiSession'
 import { CommandResult, Message } from '../types'
 
 // Listener for the hotkey command
@@ -21,32 +22,29 @@ chrome.runtime.onMessage.addListener((message: Message, sender) => {
   const handleMessage = async () => {
     if (message.type === 'COMMAND_CHANGED') {
       console.log('Helm Background: Command changed', message.payload)
-      const query = message.payload
-      const allTabs = await chrome.tabs.query({})
+      const { intent, query } = await getIntentFromLLM(message.payload)
 
-      // Configure Fuse.js for fuzzy searching on tab titles and URLs
-      const fuse = new Fuse(allTabs, {
-        keys: ['title', 'url'],
-        includeScore: true,
-        threshold: 0.4,
-      })
-
-      const searchResults = fuse.search(query)
-
-      // Format the Fuse results into our CommandResult type
-      const formattedResults: CommandResult[] = searchResults.map(({ item: tab }) => ({
-        id: String(tab.id), // Ensure ID is a string
-        type: 'tab',
-        title: tab.title || 'Untitled Tab',
-        subtitle: tab.url,
-        faviconUrl: tab.favIconUrl,
-      }))
-
-      if (sender.tab?.id) {
-        chrome.tabs.sendMessage(sender.tab.id, {
-          type: 'RESULTS_UPDATED',
-          payload: formattedResults.slice(0, 10),
-        }) // Send top 10 results
+      switch (intent) {
+        case 'FIND_TAB': {
+          console.log('Helm Background: Finding tab', query)
+          const results = await findTabs(query)
+          if (sender.tab?.id) {
+            chrome.tabs.sendMessage(sender.tab.id, {
+              type: 'RESULTS_UPDATED',
+              payload: results.slice(0, 10),
+            })
+          }
+          break
+        }
+        case 'GROUP_TABS': {
+          console.log('Helm Background: Grouping tabs', query)
+          // TODO: Implement tab grouping logic
+          break
+        }
+        case 'UNKNOWN':
+        default:
+          console.log('Helm Background: Unknown intent', { intent, query })
+          break
       }
     } else if (message.type === 'EXECUTE_ACTION') {
       console.log('Helm Background: Executing action', message.payload)
@@ -63,7 +61,60 @@ chrome.runtime.onMessage.addListener((message: Message, sender) => {
   }
 
   handleMessage()
-  // Return true to indicate you will send a response asynchronously.
-  // This is crucial because our handleMessage function is now async.
-  return true
 })
+
+// Use AI to classify the user's command and call the correct function
+async function getIntentFromLLM(text: string): Promise<{ intent: string; query: string }> {
+  const currentSession = await getLanguageModelSession()
+
+  if (!currentSession) {
+    return { intent: 'FIND_TAB', query: text }
+  }
+
+  resetSessionDestroyTimer()
+
+  const prompt = text
+
+  // The JSON schema to constrain the model response
+  const schema = {
+    type: 'object',
+    properties: {
+      intent: { type: 'string', enum: ['FIND_TAB', 'GROUP_TABS', 'UNKNOWN'] },
+      query: { type: 'string' },
+    },
+  }
+
+  try {
+    const result = await currentSession.prompt(prompt, { responseConstraint: schema })
+    const parsed = JSON.parse(result)
+    return {
+      intent: parsed.intent || 'UNKNOWN',
+      query: parsed.query || text,
+    }
+  } catch (e) {
+    console.error('Helm AI: Error during prompt execution.', e)
+    return { intent: 'FIND_TAB', query: text }
+  }
+}
+
+async function findTabs(query: string): Promise<CommandResult[]> {
+  const allTabs = await chrome.tabs.query({})
+
+  // Configure Fuse.js for fuzzy searching on tab titles and URLs
+  const fuse = new Fuse(allTabs, {
+    keys: ['title', 'url'],
+    includeScore: true,
+    threshold: 0.4,
+  })
+
+  const searchResults = fuse.search(query)
+  
+  // Format the Fuse results into our CommandResult type
+  return searchResults.map(({ item: tab }) => ({
+    id: String(tab.id),
+    type: 'tab',
+    title: tab.title || 'Untitled Tab',
+    subtitle: tab.url,
+    faviconUrl: tab.favIconUrl,
+  }))
+}

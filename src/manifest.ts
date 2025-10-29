@@ -37,7 +37,7 @@ export default defineManifest({
       matches: [],
     },
   ],
-  permissions: ['tabs'],
+  permissions: ['tabs', 'tabGroups'],
   commands: {
     OPEN_HELM: {
       suggested_key: {
