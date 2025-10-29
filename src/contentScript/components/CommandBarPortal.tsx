@@ -1,6 +1,11 @@
 import React, { useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import CommandBar from './CommandBar'
+import { helmGlobalStyles } from './GlobalStyles'
+import { ScopedCssBaseline } from '@mui/material'
+
+// MUI recommends hoisting global styles to a static constant to optimize performance
+const globalStyles = helmGlobalStyles()
 
 interface CommandBarPortalProps {
   onClose: () => void
@@ -11,16 +16,20 @@ const CommandBarPortal = ({ onClose, portalTarget }: CommandBarPortalProps) => {
   const commandBarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    console.log('Helm Content Script: CommandBarPortal mounted.')
+    // Handle escape key press
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        console.log('Helm Content Script: Closing portal on Escape key.')
         onClose()
       }
     }
 
+    // Handle click outside of the command bar area
     const handleClickOutside = (e: MouseEvent) => {
-      // Check if a click was outside of the command bar area
       const path = e.composedPath()
       if (commandBarRef.current && !path.includes(commandBarRef.current)) {
+        console.log('Helm Content Script: Closing portal on click outside.')
         onClose()
       }
     }
@@ -31,6 +40,7 @@ const CommandBarPortal = ({ onClose, portalTarget }: CommandBarPortalProps) => {
 
     // Remove listeners when the portal unmounts
     return () => {
+      console.log('Helm Content Script: CommandBarPortal unmounted.')
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('mousedown', handleClickOutside)
     }
@@ -38,9 +48,16 @@ const CommandBarPortal = ({ onClose, portalTarget }: CommandBarPortalProps) => {
 
   // Use a react portal to render the command bar into a div that lives in the Shadow DOM
   return ReactDOM.createPortal(
-    <div className="helm-overlay">
-      <CommandBar ref={commandBarRef} />
-    </div>,
+    <>
+      {/* CSS reset */}
+      <ScopedCssBaseline>
+        {/* Our custom global styles run after the reset */}
+        {globalStyles}
+        <div className="helm-overlay">
+          <CommandBar ref={commandBarRef} />
+        </div>
+      </ScopedCssBaseline>
+    </>,
     portalTarget,
   )
 }

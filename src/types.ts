@@ -10,4 +10,5 @@ export interface CommandResult {
   type: 'tab' | 'action' | 'workspace';
   title: string;
   subtitle?: string;
+  faviconUrl?: string;
 }

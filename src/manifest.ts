@@ -6,7 +6,8 @@ const isDev = process.env.NODE_ENV == 'development'
 
 export default defineManifest({
   name: 'Helm',
-  description: 'Feeling overwhelmed by browser clutter? Helm puts you back in control. A powerful, AI-driven command bar that lets you find, group, and manage tabs, windows, and workspaces with simple, natural language. Stop clicking, start commanding.',
+  description:
+    'Feeling overwhelmed by browser clutter? Helm puts you back in control. A powerful, AI-driven command bar that lets you find, group, and manage tabs, windows, and workspaces with simple, natural language. Stop clicking, start commanding.',
   version: packageData.version,
   manifest_version: 3,
   icons: {
@@ -30,26 +31,20 @@ export default defineManifest({
       js: ['src/contentScript/index.tsx'],
     },
   ],
-  side_panel: {
-    default_path: 'sidepanel.html',
-  },
   web_accessible_resources: [
     {
       resources: ['img/logo-16.png', 'img/logo-32.png', 'img/logo-48.png', 'img/logo-128.png'],
       matches: [],
     },
   ],
-  permissions: ['sidePanel', 'storage', 'tabs'],
-  chrome_url_overrides: {
-    newtab: 'newtab.html',
-  },
+  permissions: ['tabs'],
   commands: {
-    'OPEN_HELM': {
+    OPEN_HELM: {
       suggested_key: {
         default: 'Ctrl+Shift+L',
-        mac: 'MacCtrl+Shift+L'
+        mac: 'MacCtrl+Shift+L',
       },
-      description: 'Open the command bar'
-    }
-  }
+      description: 'Open the command bar',
+    },
+  },
 })

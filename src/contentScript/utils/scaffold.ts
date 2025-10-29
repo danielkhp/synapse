@@ -1,4 +1,4 @@
-import styles from '../app.css?raw'
+import createCache from "@emotion/cache"
 
 /**
  * Sets up the entire UI scaffold for the Helm extension.
@@ -8,6 +8,7 @@ import styles from '../app.css?raw'
 export function setupUiScaffold(): {
   appContainer: HTMLDivElement
   portalContainer: HTMLDivElement
+  emotionCache: ReturnType<typeof createCache>
 } {
   // Create a host element for our extension and apply necessary styling
   const shadowHost = document.createElement('div')
@@ -40,10 +41,13 @@ export function setupUiScaffold(): {
   portalContainer.id = 'helm-portal-container'
   shadowRoot.appendChild(portalContainer)
 
-  // Inject styles
-  const sheet = new CSSStyleSheet()
-  sheet.replaceSync(styles)
-  shadowRoot.adoptedStyleSheets = [sheet]
+  // Tell Emotion to inject styles into the Shadow DOM
+  const emotionCache = createCache({
+    key: 'helm-styles',
+    container: shadowRoot, 
+  });
 
-  return { appContainer, portalContainer }
+  console.log('Helm Content Script: UI scaffold setup complete.');
+
+  return { appContainer, portalContainer, emotionCache }
 }

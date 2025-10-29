@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react'
-import './App.css'
 import { Message } from '../types'
 import CommandBarPortal from './components/CommandBarPortal'
 
@@ -14,6 +13,7 @@ const App = ({ portalTarget }: AppProps) => {
   useEffect(() => {
     const messageListener = (message: Message) => {
       if (message.type === 'TOGGLE_UI') {
+        console.log('Helm Content Script: Toggling UI visibility.')
         setIsVisible((prev) => !prev)
       }
     }
