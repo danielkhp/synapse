@@ -1,6 +1,6 @@
-import Fuse from 'fuse.js'
 import { getIntentFromLLM, findBestTabSemantically } from './ai'
 import { CommandResult, Message } from '../types'
+import { findTabsByQuery } from './actions'
 
 let aiDebounceTimer: NodeJS.Timeout | null = null
 const AI_DEBOUNCE_DELAY_MS = 350 // A good delay for user pauses
@@ -10,7 +10,7 @@ let queryAbortController = new AbortController()
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'OPEN_HELM') {
     console.log('Helm Background: Hotkey pressed')
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }) // get the current active window and tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
 
     if (tab?.id) {
       chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_UI' })
@@ -20,67 +20,51 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Listener for messages from the content script
 chrome.runtime.onMessage.addListener(async (message: Message, sender) => {
-  if (sender.id !== chrome.runtime.id) return // check that the sender id is this extension's id
   console.log('Helm Background: Message received', message)
+  if (sender.id !== chrome.runtime.id) return // check that the sender id is this extension's id
 
-  if (message.type === 'COMMAND_CHANGED') {
-    const command = message.payload
-    if (command.trim() === '') return
+  switch (message.type) {
+    case 'COMMAND_CHANGED': {
+      const command = message.payload
+      if (command.trim() === '') return
 
-    // Instant, fuzzy tab search
-    findTabs(command).then((fuseResults) => {
-      if (sender.tab?.id) {
-        chrome.tabs.sendMessage(sender.tab.id, {
-          type: 'RESULTS_UPDATED',
-          payload: fuseResults.slice(0, 10),
-        })
-      }
-    })
+      // Instant, fuzzy tab search
+      findTabsByQuery(command).then((fuseResults) => {
+        if (sender.tab?.id) {
+          chrome.tabs.sendMessage(sender.tab.id, {
+            type: 'RESULTS_UPDATED',
+            payload: fuseResults.slice(0, 10),
+          })
+        }
+      })
 
-    // Debounced AI pipeline
-    if (aiDebounceTimer) clearTimeout(aiDebounceTimer) // Clear any previous debounce
-    queryAbortController.abort() // Abort any in-flight AI request
-    aiDebounceTimer = setTimeout(
-      () => handleDebouncedAiLogic(command, sender),
-      AI_DEBOUNCE_DELAY_MS,
-    )
-  } else if (message.type === 'EXECUTE_ACTION') {
-    console.log(`Helm Background: Executing action '${message.payload}'`)
-    const tabId = parseInt(message.payload.id, 10)
-    const tab = await chrome.tabs.get(tabId)
-
-    // Switch to the tab
-    await chrome.tabs.update(tabId, { active: true })
-    // Focus the window the tab is in
-    if (tab.windowId) {
-      await chrome.windows.update(tab.windowId, { focused: true })
+      // Debounced AI pipeline
+      if (aiDebounceTimer) clearTimeout(aiDebounceTimer) // Clear any previous debounce
+      queryAbortController.abort() // Abort any in-flight AI request
+      aiDebounceTimer = setTimeout(
+        () => handleDebouncedAiLogic(command, sender),
+        AI_DEBOUNCE_DELAY_MS,
+      )
+      break
     }
+    case 'EXECUTE_ACTION': {
+      console.log(`Helm Background: Executing action '${message.payload}'`)
+      const tabId = parseInt(message.payload.id, 10)
+      const tab = await chrome.tabs.get(tabId)
+
+      // Switch to the tab
+      await chrome.tabs.update(tabId, { active: true })
+      // Focus the window the tab is in
+      if (tab.windowId) {
+        await chrome.windows.update(tab.windowId, { focused: true })
+      }
+      break
+    }
+    default:
+      console.log('Helm Background: Unknown message type', message.type)
+      break
   }
 })
-
-async function findTabs(query: string): Promise<CommandResult[]> {
-  console.log(`Helm background: Fuzzy searching for '${query}'`)
-  const allTabs = await chrome.tabs.query({})
-
-  // Configure Fuse.js for fuzzy searching on tab titles and URLs
-  const fuse = new Fuse(allTabs, {
-    keys: ['title', 'url'],
-    includeScore: true,
-    threshold: 0.4,
-  })
-
-  const searchResults = fuse.search(query)
-  console.log(`Helm background: Fuzzy search found ${searchResults.length} results`)
-
-  // Format the Fuse results into our CommandResult type
-  return searchResults.map(({ item: tab }) => ({
-    id: String(tab.id),
-    type: 'tab',
-    title: tab.title || 'Untitled Tab',
-    subtitle: tab.url,
-    faviconUrl: tab.favIconUrl,
-  }))
-}
 
 async function handleDebouncedAiLogic(command: string, sender: chrome.runtime.MessageSender) {
   // Create a new controller for this specific, debounced request.
@@ -88,7 +72,7 @@ async function handleDebouncedAiLogic(command: string, sender: chrome.runtime.Me
 
   try {
     // 1. --- Re-run the Fuse search with the most recent, debounced query ---
-    const fuseResults = await findTabs(command)
+    const fuseResults = await findTabsByQuery(command)
     if (signal.aborted || fuseResults.length > 0) return
 
     // 2. --- If the Fuse search fails, the AI takes over for intelligent, semantic routing ---
@@ -142,7 +126,7 @@ async function handleDebouncedAiLogic(command: string, sender: chrome.runtime.Me
           payload: results,
         })
       } else {
-        chrome.tabs.sendMessage(sender.tab.id, { type: 'AI_SEARCH_FINISHED' })
+        chrome.tabs.sendMessage(sender.tab.id, { type: 'AI_PROCESSING_FINISHED' })
       }
     }
   } catch (e: any) {
