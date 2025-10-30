@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { CommandResult, Message } from '../../types'
+import AiThinkingIndicator from './AiThinkingIndicator'
 
 import ListItem from '@mui/material/ListItem'
 import ListItemIcon from '@mui/material/ListItemIcon'
@@ -11,10 +12,13 @@ import {
   ResultsListContainer,
 } from './CommandBar.styles'
 
+type AiStatus = 'idle' | 'processing'
+
 const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
   const [command, setCommand] = useState('')
   const [results, setResults] = useState<CommandResult[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [aiStatus, setAiStatus] = useState<AiStatus>('idle')
 
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -34,15 +38,21 @@ const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
       })
     } else {
       setResults([]) // Clear results when query is empty
+      setAiStatus('idle') // Reset AI status if the query is empty
     }
   }, [command])
 
-  // Listen for results from the background script
+  // Listen for messages from the background script
   useEffect(() => {
     const messageListener = (message: Message) => {
+      console.log('Helm Content Script: Received message from background script:', message)
       if (message.type === 'RESULTS_UPDATED') {
-        console.log('Helm Content Script: Results updated', message.payload)
         setResults(message.payload)
+        setAiStatus('idle')
+      } else if (message.type === 'AI_PROCESSING_STARTED') {
+        setAiStatus('processing')
+      } else if (message.type === 'AI_PROCESSING_FINISHED') {
+        setAiStatus('idle')
       }
     }
     chrome.runtime.onMessage.addListener(messageListener)
@@ -102,6 +112,7 @@ const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
         autoFocus
       />
       <ResultsListContainer disablePadding>
+        {aiStatus === 'processing' && <AiThinkingIndicator />}
         {results.map((result, index) => (
           <ListItem key={result.id} disablePadding>
             <ResultItemStyled

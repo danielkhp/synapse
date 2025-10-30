@@ -129,7 +129,7 @@ ${tabListForPrompt}
 # User Query:
 "${query}"
 
-Analyze the list and the query. If you find a high-confidence match, respond with the JSON object of that single tab from the list. If no tab is a good semantic match, respond with an empty JSON object {}.`
+Analyze the list and the query. If you find a high-confidence match, respond with a JSON object of that single tab's id from the list. If no tab is a good semantic match, respond with an empty JSON object {}.`
 
   // We define a schema that expects an object, which might have an 'id'.
   // This allows the model to return an empty object for no match.

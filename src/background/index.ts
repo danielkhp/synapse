@@ -19,7 +19,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 })
 
 // Listener for messages from the content script
-chrome.runtime.onMessage.addListener(async(message: Message, sender) => {
+chrome.runtime.onMessage.addListener(async (message: Message, sender) => {
   if (sender.id !== chrome.runtime.id) return // check that the sender id is this extension's id
   console.log('Helm Background: Message received', message)
 
@@ -29,8 +29,6 @@ chrome.runtime.onMessage.addListener(async(message: Message, sender) => {
 
     // Instant, fuzzy tab search
     findTabs(command).then((fuseResults) => {
-      if (fuseResults.length === 0) return
-
       if (sender.tab?.id) {
         chrome.tabs.sendMessage(sender.tab.id, {
           type: 'RESULTS_UPDATED',
@@ -42,8 +40,10 @@ chrome.runtime.onMessage.addListener(async(message: Message, sender) => {
     // Debounced AI pipeline
     if (aiDebounceTimer) clearTimeout(aiDebounceTimer) // Clear any previous debounce
     queryAbortController.abort() // Abort any in-flight AI request
-    aiDebounceTimer = setTimeout(() => handleDebouncedLogic(command, sender), AI_DEBOUNCE_DELAY_MS)
-
+    aiDebounceTimer = setTimeout(
+      () => handleDebouncedAiLogic(command, sender),
+      AI_DEBOUNCE_DELAY_MS,
+    )
   } else if (message.type === 'EXECUTE_ACTION') {
     console.log(`Helm Background: Executing action '${message.payload}'`)
     const tabId = parseInt(message.payload.id, 10)
@@ -82,24 +82,24 @@ async function findTabs(query: string): Promise<CommandResult[]> {
   }))
 }
 
-async function handleDebouncedLogic(command: string, sender: chrome.runtime.MessageSender) {
+async function handleDebouncedAiLogic(command: string, sender: chrome.runtime.MessageSender) {
   // Create a new controller for this specific, debounced request.
   const signal = (queryAbortController = new AbortController()).signal
 
   try {
     // 1. --- Re-run the Fuse search with the most recent, debounced query ---
-    const currentFuseResults = await findTabs(command)
-    if (signal.aborted || currentFuseResults.length > 0) return
+    const fuseResults = await findTabs(command)
+    if (signal.aborted || fuseResults.length > 0) return
 
     // 2. --- If the Fuse search fails, the AI takes over for intelligent, semantic routing ---
     if (sender.tab?.id) {
-      chrome.tabs.sendMessage(sender.tab.id, { type: 'AI_SEARCH_STARTED' })
+      chrome.tabs.sendMessage(sender.tab.id, { type: 'AI_PROCESSING_STARTED' })
     }
     // Classify the user's intent and extract the query
     const { intent, query } = await getIntentFromLLM(command, signal)
     if (signal.aborted) return
 
-    let finalResults: CommandResult[] = []
+    let results: CommandResult[] = []
 
     switch (intent) {
       case 'FIND_TAB': {
@@ -109,7 +109,7 @@ async function handleDebouncedLogic(command: string, sender: chrome.runtime.Mess
         if (semanticMatch) {
           // We found a smart result! Create a special result object for it.
           const smartResult: CommandResult = {
-            id: `tab-${semanticMatch.id}`,
+            id: String(semanticMatch.id),
             type: 'tab',
             // Prepend a sparkle to the title for the UI
             title: `✨ ${semanticMatch.title || 'Untitled Tab'}`,
@@ -117,7 +117,7 @@ async function handleDebouncedLogic(command: string, sender: chrome.runtime.Mess
             subtitle: `Suggested for "${query}"`,
             faviconUrl: semanticMatch.favIconUrl,
           }
-          finalResults.push(smartResult)
+          results.push(smartResult)
         }
         break
       }
@@ -136,17 +136,21 @@ async function handleDebouncedLogic(command: string, sender: chrome.runtime.Mess
 
     // Send the results to the content script
     if (sender.tab?.id && !signal.aborted) {
-      chrome.tabs.sendMessage(sender.tab.id, {
-        type: 'RESULTS_UPDATED',
-        payload: finalResults,
-      })
+      if (results.length > 0) {
+        chrome.tabs.sendMessage(sender.tab.id, {
+          type: 'RESULTS_UPDATED',
+          payload: results,
+        })
+      } else {
+        chrome.tabs.sendMessage(sender.tab.id, { type: 'AI_SEARCH_FINISHED' })
+      }
     }
   } catch (e: any) {
     if (e.name !== 'AbortError') {
       console.error('Helm AI: Error during AI pipeline', e)
     }
     if (sender.tab?.id) {
-      chrome.tabs.sendMessage(sender.tab.id, { type: 'AI_SEARCH_FINISHED' })
+      chrome.tabs.sendMessage(sender.tab.id, { type: 'AI_PROCESSING_FINISHED' })
     }
   }
 }
