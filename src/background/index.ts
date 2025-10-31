@@ -1,4 +1,4 @@
-import { getIntentFromLLM, findBestTabSemantically } from './ai'
+import { getIntentFromLLM, findBestTabSemantically } from './ai/ai.service'
 import { CommandResult, Message } from '../types'
 import { findTabsByQuery } from './actions'
 
