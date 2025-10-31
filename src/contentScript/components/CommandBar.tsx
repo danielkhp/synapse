@@ -2,15 +2,12 @@ import React, { useState, useEffect, useRef } from 'react'
 import { CommandResult, Message } from '../../types'
 import AiThinkingIndicator from './AiThinkingIndicator'
 
-import ListItem from '@mui/material/ListItem'
-import ListItemIcon from '@mui/material/ListItemIcon'
-import ListItemText from '@mui/material/ListItemText'
 import {
   CommandBarContainer,
   CommandInputStyled,
-  ResultItemStyled,
   ResultsListContainer,
 } from './CommandBar.styles'
+import ResultItem from './ResultItem'
 
 type AiStatus = 'idle' | 'processing'
 
@@ -24,14 +21,12 @@ const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
 
   // Focus input when the component mounts
   useEffect(() => {
-    console.log('Helm Content Script: CommandBar mounted.')
     inputRef.current?.focus()
   }, [])
 
   // Send the command to the background script whenever it changes
   useEffect(() => {
     if (command.trim() !== '') {
-      console.log(`Helm Content Script: Command changed to "${command}"`)
       chrome.runtime.sendMessage({
         type: 'COMMAND_CHANGED',
         payload: command,
@@ -51,8 +46,6 @@ const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
         setAiStatus('idle')
       } else if (message.type === 'AI_PROCESSING_STARTED') {
         setAiStatus('processing')
-      } else if (message.type === 'AI_PROCESSING_FINISHED') {
-        setAiStatus('idle')
       }
     }
     chrome.runtime.onMessage.addListener(messageListener)
@@ -71,10 +64,9 @@ const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
 
   // Handle selecting an item from the results list
   const handleSelect = (result: CommandResult) => {
-    console.log('Helm Content Script: Executing action for result', result)
     chrome.runtime.sendMessage({
       type: 'EXECUTE_ACTION',
-      payload: { id: result.id },
+      payload: result,
     })
   }
 
@@ -114,20 +106,12 @@ const CommandBar = React.forwardRef<HTMLDivElement>((props, ref) => {
       <ResultsListContainer disablePadding>
         {aiStatus === 'processing' && <AiThinkingIndicator />}
         {results.map((result, index) => (
-          <ListItem key={result.id} disablePadding>
-            <ResultItemStyled
-              selected={index === selectedIndex}
-              onClick={() => handleSelect(result)}
-            >
-              <ListItemIcon sx={{ minWidth: '32px' }}>
-                <img
-                  src={result.faviconUrl || 'icons/default_icon.png'}
-                  style={{ width: 16, height: 16 }}
-                />
-              </ListItemIcon>
-              <ListItemText primary={result.title} secondary={result.subtitle} />
-            </ResultItemStyled>
-          </ListItem>
+          <ResultItem
+            key={result.id}
+            result={result}
+            isSelected={index === selectedIndex}
+            onSelect={handleSelect}
+          />
         ))}
       </ResultsListContainer>
     </CommandBarContainer>

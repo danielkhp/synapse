@@ -5,7 +5,6 @@ import ListItemText from '@mui/material/ListItemText'
 import { ResultItemStyled } from './CommandBar.styles'
 
 const AiThinkingIndicator = () => {
-  console.log('AiThinkingIndicator mounted')
   return (
     <ListItem disablePadding>
       <ResultItemStyled disabled>

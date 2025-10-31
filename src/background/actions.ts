@@ -1,26 +1,61 @@
-import Fuse from 'fuse.js'
+import Fuse, { FuseResult } from 'fuse.js'
 import { CommandResult } from '../types'
+import { aiService } from './ai/ai.service'
 
 // Perform a fuzzy search across all tabs
-export async function findTabsByQuery(query: string): Promise<CommandResult[]> {
-  console.log(`Helm background: Fuzzy searching for '${query}'`)
+export async function findTabsByFuzzySearch(query: string): Promise<FuseResult<chrome.tabs.Tab>[]> {
+  if (query.trim() === '') return []
+
   const allTabs = await chrome.tabs.query({})
 
   const fuse = new Fuse(allTabs, {
     keys: ['title', 'url'],
-    includeScore: true,
-    threshold: 0.4,
+    threshold: 0.3,
   })
 
-  const searchResults = fuse.search(query)
-  console.log(`Helm background: Fuzzy search found ${searchResults.length} results`)
+  return fuse.search(query)
+}
 
-  // Format the Fuse results into our CommandResult type
-  return searchResults.map(({ item: tab }) => ({
-    id: String(tab.id),
-    type: 'tab',
-    title: tab.title || 'Untitled Tab',
-    subtitle: tab.url,
-    faviconUrl: tab.favIconUrl,
-  }))
+// Perform a semantic search across all tabs
+export async function findTabsSemantically(query: string): Promise<number[]> {
+  const allTabs = await chrome.tabs.query({})
+  const semanticMatch = await aiService.findBestTabSemantically(
+    query,
+    allTabs,
+    new AbortController().signal,
+  )
+  if (semanticMatch && typeof semanticMatch.id === 'number') {
+    return [semanticMatch.id]
+  }
+
+  return []
+}
+
+// Group a given set of tabs under a specified name
+export async function groupTabs(tabIds: number[], groupName: string): Promise<void> {
+  if (!tabIds || tabIds.length === 0) return
+
+  try {
+    const groupId = await chrome.tabs.group({ tabIds })
+    await chrome.tabGroups.update(groupId, { title: groupName })
+    console.log(`Helm Actions: Grouped ${tabIds.length} tabs under "${groupName}".`)
+  } catch (e) {
+    console.error('Helm Actions: Failed to group tabs.', e)
+  }
+}
+
+// Switches focus to a specified tab
+export async function switchToTab(tabId: number): Promise<void> {
+  if (!tabId) return
+
+  try {
+    await chrome.tabs.update(tabId, { active: true })
+    const tab = await chrome.tabs.get(tabId)
+    if (tab.windowId) {
+      await chrome.windows.update(tab.windowId, { focused: true })
+    }
+    console.log(`Helm Actions: Switched to tab ${tabId}.`)
+  } catch (e) {
+    console.error(`Helm Actions: Failed to switch to tab ${tabId}.`, e)
+  }
 }

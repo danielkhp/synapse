@@ -1,7 +1,7 @@
-import React from 'react';
+import React from 'react'
 
 const ActionHint = () => {
-  return <span>Action Hint</span>;
-};
+  return <span>Action Hint</span>
+}
 
-export default ActionHint;
+export default ActionHint

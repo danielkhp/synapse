@@ -1,4 +1,4 @@
-import GlobalStyles from '@mui/material/GlobalStyles';
+import GlobalStyles from '@mui/material/GlobalStyles'
 
 const globalStyles = {
   ':host': {
@@ -26,6 +26,6 @@ const globalStyles = {
     pointerEvents: 'auto',
     paddingTop: '10vh',
   },
-};
+}
 
 export const helmGlobalStyles = () => <GlobalStyles styles={globalStyles} />

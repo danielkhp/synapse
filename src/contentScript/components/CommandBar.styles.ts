@@ -1,8 +1,8 @@
-import { styled } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
-import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItemButton';
+import { styled } from '@mui/material/styles'
+import Box from '@mui/material/Box'
+import TextField from '@mui/material/TextField'
+import List from '@mui/material/List'
+import ListItemButton from '@mui/material/ListItemButton'
 
 export const CommandBarContainer = styled(Box)(({ theme }) => ({
   backgroundColor: '#fff',
@@ -13,7 +13,7 @@ export const CommandBarContainer = styled(Box)(({ theme }) => ({
   maxWidth: '90vw',
   display: 'flex',
   flexDirection: 'column',
-}));
+}))
 
 export const CommandInputStyled = styled(TextField)({
   '& .MuiOutlinedInput-root': {
@@ -22,13 +22,13 @@ export const CommandInputStyled = styled(TextField)({
       padding: '12px 14px',
     },
   },
-});
+})
 
 export const ResultsListContainer = styled(List)({
   marginTop: '4px',
   maxHeight: '400px',
   overflowY: 'auto',
-});
+})
 
 export const ResultItemStyled = styled(ListItemButton)(({ theme }) => ({
   borderRadius: '4px',
@@ -42,4 +42,4 @@ export const ResultItemStyled = styled(ListItemButton)(({ theme }) => ({
   '&:hover': {
     backgroundColor: '#f5f5f5',
   },
-}));
+}))
