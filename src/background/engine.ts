@@ -18,7 +18,7 @@ export async function executePlan(plan: PlanStep[]) {
     switch (step.action) {
       case 'FIND_TABS':
         console.log('Helm Engine: Finding tabs')
-        stepResult = await actions.findTabsSemantically(params.query)
+        stepResult = await actions.findTabIdsByAi(params.query)
         break
       case 'GROUP_TABS':
         console.log('Helm Engine: Grouping tabs')

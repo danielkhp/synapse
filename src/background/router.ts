@@ -93,20 +93,20 @@ async function handleDebouncedLogic(query: string, sender: chrome.runtime.Messag
       })
     } else {
       // This is a "FIND_TABS" plan (a semantic rescue search).
-      const semanticMatch = await aiService.findBestTabSemantically(
+      const matchedTabs = await aiService.findMatchingTabs(
         query,
         await chrome.tabs.query({}),
         signal,
       )
-      if (semanticMatch) {
+      for (const tab of matchedTabs) {
         finalResults.push({
-          id: `tab-${semanticMatch.id}`,
+          id: `tab-${tab.id}`,
           type: 'tab',
-          title: `✨ ${semanticMatch.title || ''}`,
+          title: `✨ ${tab.title || ''}`,
           subtitle: `Suggested for "${query}"`,
-          faviconUrl: semanticMatch.favIconUrl,
+          faviconUrl: tab.favIconUrl,
           payload: {
-            plan: [{ action: 'SWITCH_TO_TAB', params: { tabId: semanticMatch.id } }],
+            plan: [{ action: 'SWITCH_TO_TAB', params: { tabId: tab.id } }],
           },
         })
       }

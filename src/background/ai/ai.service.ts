@@ -9,12 +9,12 @@ class AiService {
     return this.planner.getPlan(query, signal)
   }
 
-  public findBestTabSemantically(
+  public findMatchingTabs(
     query: string,
     tabs: chrome.tabs.Tab[],
     signal: AbortSignal,
-  ): Promise<chrome.tabs.Tab | null> {
-    return this.searcher.findBestTab(query, tabs, signal)
+  ): Promise<chrome.tabs.Tab[]> {
+    return this.searcher.findMatchingTabs(query, tabs, signal)
   }
 }
 

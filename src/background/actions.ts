@@ -17,18 +17,12 @@ export async function findTabsByFuzzySearch(query: string): Promise<FuseResult<c
 }
 
 // Perform a semantic search across all tabs
-export async function findTabsSemantically(query: string): Promise<number[]> {
+export async function findTabIdsByAi(query: string): Promise<number[]> {
   const allTabs = await chrome.tabs.query({})
-  const semanticMatch = await aiService.findBestTabSemantically(
-    query,
-    allTabs,
-    new AbortController().signal,
-  )
-  if (semanticMatch && typeof semanticMatch.id === 'number') {
-    return [semanticMatch.id]
-  }
+  const matchedTabs = await aiService.findMatchingTabs(query, allTabs, new AbortController().signal)
+  if (!matchedTabs || matchedTabs.length === 0) return []
 
-  return []
+  return matchedTabs.map((t) => t.id).filter((id): id is number => typeof id === 'number')
 }
 
 // Group a given set of tabs under a specified name
